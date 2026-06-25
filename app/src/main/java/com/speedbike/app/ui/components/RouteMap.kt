@@ -93,13 +93,14 @@ fun RouteMap(
     var followUser by remember { mutableStateOf(follow && !fitRoute) }
     var didFit by remember { mutableStateOf(false) }
     var appliedStyle by remember { mutableStateOf<MapStyle?>(null) }
-    var suppressUntil by remember { mutableStateOf(0L) }
+    // Plain holder (not Compose state) so writing it never triggers recomposition.
+    val suppress = remember { longArrayOf(0L) }
 
     DisposableEffect(mapView) {
         mapView.onResume()
         val listener = object : MapListener {
             override fun onScroll(event: ScrollEvent?): Boolean {
-                if (SystemClock.elapsedRealtime() > suppressUntil) followUser = false
+                if (SystemClock.elapsedRealtime() > suppress[0]) followUser = false
                 return false
             }
 
@@ -141,7 +142,7 @@ fun RouteMap(
                     )
                     mv.post { runCatching { mv.zoomToBoundingBox(box, false, 90) } }
                 } else if (followUser && here != null) {
-                    suppressUntil = SystemClock.elapsedRealtime() + 700
+                    suppress[0] = SystemClock.elapsedRealtime() + 700
                     mv.controller.animateTo(GeoPoint(here.latitude, here.longitude))
                 }
                 mv.invalidate()
@@ -185,7 +186,7 @@ fun RouteMap(
                     .clickable {
                         followUser = true
                         (current ?: path.lastOrNull())?.let {
-                            suppressUntil = SystemClock.elapsedRealtime() + 700
+                            suppress[0] = SystemClock.elapsedRealtime() + 700
                             mapView.controller.animateTo(GeoPoint(it.latitude, it.longitude))
                         }
                     },
