@@ -9,15 +9,19 @@ import java.util.Locale
 class VoiceAnnouncer(context: Context) {
 
     private var ready = false
-    private val tts = TextToSpeech(context.applicationContext) { status ->
-        if (status == TextToSpeech.SUCCESS) {
-            val result = tts.setLanguage(Locale("uk"))
-            if (result == TextToSpeech.LANG_MISSING_DATA ||
-                result == TextToSpeech.LANG_NOT_SUPPORTED
-            ) {
-                tts.language = Locale.getDefault()
+    private lateinit var tts: TextToSpeech
+
+    init {
+        tts = TextToSpeech(context.applicationContext) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                val result = tts.setLanguage(Locale("uk"))
+                if (result == TextToSpeech.LANG_MISSING_DATA ||
+                    result == TextToSpeech.LANG_NOT_SUPPORTED
+                ) {
+                    tts.setLanguage(Locale.getDefault())
+                }
+                ready = true
             }
-            ready = true
         }
     }
 
