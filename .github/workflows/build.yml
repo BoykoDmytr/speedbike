@@ -6,6 +6,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -33,9 +36,30 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDebug --no-daemon --stacktrace
 
+      - name: Rename APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk SpeedBike.apk
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: speedbike-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: SpeedBike.apk
           if-no-files-found: error
+
+      # Publish the APK to a rolling GitHub Release so it can be installed on a
+      # phone with a single tap — no login, no zip. Direct link:
+      #   https://github.com/<owner>/speedbike/releases/latest
+      - name: Publish APK to Release
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: app-latest
+          name: SpeedBike — остання збірка APK
+          body: |
+            📲 **Як встановити на телефон:**
+            1. Завантаж `SpeedBike.apk` нижче (розділ Assets).
+            2. Відкрий файл на телефоні та дозволь встановлення з невідомих джерел.
+
+            Збірка з гілки `${{ github.ref_name }}` (commit ${{ github.sha }}).
+          files: SpeedBike.apk
+          make_latest: true
