@@ -25,12 +25,15 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.speedbike.app.MainActivity
 import com.speedbike.app.R
+import com.speedbike.app.data.PathCodec
 import com.speedbike.app.data.RideRepository
 import com.speedbike.app.data.RideState
 import com.speedbike.app.data.RideStatus
 import com.speedbike.app.data.TrackPoint
-import com.speedbike.app.util.formatDistance
-import com.speedbike.app.util.formatSpeed
+import com.speedbike.app.data.db.AppDatabase
+import com.speedbike.app.data.db.RideEntity
+import com.speedbike.app.util.Calories
+import com.speedbike.app.util.Units
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -41,19 +44,22 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
- * Foreground service that owns GPS tracking. It updates [RideRepository] on every
- * location fix and ticks the ride timer every second so tracking continues with
- * the screen off. Triggers [AlarmController] when the target distance is reached.
+ * Foreground service that owns GPS tracking. Single writer of [RideRepository]:
+ * computes distance/speed/elevation/calories, fires the (optionally repeating)
+ * distance alarm, speaks per-km updates, auto-pauses while stopped, and saves the
+ * finished ride to the database.
  */
 class TrackingService : Service() {
 
     private lateinit var fusedClient: FusedLocationProviderClient
     private lateinit var alarm: AlarmController
     private lateinit var notificationManager: NotificationManager
+    private var voice: VoiceAnnouncer? = null
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var timerJob: Job? = null
     private var lastTickElapsed = 0L
+    private var announcedKm = 0
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -75,15 +81,10 @@ class TrackingService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action
         if (action == null) {
-            // System-restarted with no command and no live state — don't try to
-            // re-enter the foreground (Android 14 forbids background location FGS).
             stopSelf()
             return START_NOT_STICKY
         }
-
-        // Satisfy the foreground-service contract before doing any work.
         startForegroundSafely(RideRepository.current())
-
         when (action) {
             ACTION_START -> startTracking()
             ACTION_PAUSE -> pauseTracking()
@@ -98,6 +99,8 @@ class TrackingService : Service() {
         stopTimer()
         removeLocationUpdates()
         alarm.stop()
+        voice?.shutdown()
+        voice = null
         serviceScope.cancel()
         super.onDestroy()
     }
@@ -106,15 +109,22 @@ class TrackingService : Service() {
 
     private fun startTracking() {
         val prev = RideRepository.current()
-        // Fresh ride, but keep the user's settings.
+        announcedKm = 0
         RideRepository.set(
             RideState(
                 status = RideStatus.TRACKING,
                 targetDistanceKm = prev.targetDistanceKm,
-                alarmEnabled = prev.alarmEnabled
+                alarmEnabled = prev.alarmEnabled,
+                repeatAlarm = prev.repeatAlarm,
+                useMiles = prev.useMiles,
+                voiceEnabled = prev.voiceEnabled,
+                keepScreenOn = prev.keepScreenOn,
+                autoPause = prev.autoPause,
+                weightKg = prev.weightKg
             )
         )
         alarm.stop()
+        if (prev.voiceEnabled && voice == null) voice = VoiceAnnouncer(this)
         requestLocationUpdates()
         startTimer()
         updateNotification()
@@ -131,8 +141,7 @@ class TrackingService : Service() {
     private fun resumeTracking() {
         if (RideRepository.current().status != RideStatus.PAUSED) return
         RideRepository.update {
-            // Avoid a teleport line across a pause gap: start a new segment.
-            it.copy(status = RideStatus.TRACKING, lastPoint = null)
+            it.copy(status = RideStatus.TRACKING, lastPoint = null, lastAltitude = null)
         }
         requestLocationUpdates()
         startTimer()
@@ -143,8 +152,15 @@ class TrackingService : Service() {
         stopTimer()
         removeLocationUpdates()
         alarm.stop()
+        saveRideIfMeaningful(RideRepository.current())
         RideRepository.update {
-            it.copy(status = RideStatus.IDLE, currentSpeedKmh = 0.0, isAlarmRinging = false)
+            it.copy(
+                status = RideStatus.IDLE,
+                currentSpeedKmh = 0.0,
+                isAlarmRinging = false,
+                autoPaused = false,
+                justFinished = it.distanceMeters >= MIN_SAVE_DISTANCE_M
+            )
         }
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
@@ -154,6 +170,26 @@ class TrackingService : Service() {
         alarm.stop()
         RideRepository.update { it.copy(isAlarmRinging = false) }
         updateNotification()
+    }
+
+    private fun saveRideIfMeaningful(state: RideState) {
+        if (state.distanceMeters < MIN_SAVE_DISTANCE_M) return
+        val now = System.currentTimeMillis()
+        val entity = RideEntity(
+            startedAt = state.path.firstOrNull()?.timestamp ?: now,
+            endedAt = now,
+            distanceMeters = state.distanceMeters,
+            durationMillis = state.durationMillis,
+            avgSpeedKmh = state.avgSpeedKmh,
+            maxSpeedKmh = state.maxSpeedKmh,
+            elevationGainMeters = state.elevationGainMeters,
+            caloriesKcal = state.caloriesKcal,
+            pathEncoded = PathCodec.encode(state.path)
+        )
+        val appContext = applicationContext
+        serviceScope.launch {
+            runCatching { AppDatabase.get(appContext).rideDao().insert(entity) }
+        }
     }
 
     // endregion
@@ -170,7 +206,6 @@ class TrackingService : Service() {
         try {
             fusedClient.requestLocationUpdates(request, locationCallback, Looper.getMainLooper())
         } catch (_: SecurityException) {
-            // Permission revoked mid-ride; nothing else to do.
         }
     }
 
@@ -180,11 +215,16 @@ class TrackingService : Service() {
 
     private fun onNewLocation(location: Location) {
         if (RideRepository.current().status != RideStatus.TRACKING) return
-        // Drop low-quality fixes that would inflate distance with jitter.
         if (location.hasAccuracy() && location.accuracy > MAX_ACCURACY_M) return
 
-        val newPoint = TrackPoint(location.latitude, location.longitude, System.currentTimeMillis())
+        val newPoint = TrackPoint(
+            latitude = location.latitude,
+            longitude = location.longitude,
+            altitude = if (location.hasAltitude()) location.altitude else 0.0,
+            timestamp = System.currentTimeMillis()
+        )
         val rawSpeedKmh = if (location.hasSpeed()) location.speed * 3.6 else -1.0
+        val hasAlt = location.hasAltitude()
 
         RideRepository.update { s ->
             val last = s.lastPoint
@@ -199,8 +239,7 @@ class TrackingService : Service() {
                 val results = FloatArray(1)
                 Location.distanceBetween(
                     last.latitude, last.longitude,
-                    newPoint.latitude, newPoint.longitude,
-                    results
+                    newPoint.latitude, newPoint.longitude, results
                 )
                 val d = results[0].toDouble()
                 if (d >= MIN_DISTANCE_M) {
@@ -210,31 +249,66 @@ class TrackingService : Service() {
                 }
             }
 
+            // Elevation gain — only count meaningful climbs while actually moving.
+            var elevationGain = s.elevationGainMeters
+            var lastAltitude = s.lastAltitude
+            if (hasAlt) {
+                val prevAlt = s.lastAltitude
+                if (prevAlt != null && addedMeters > 0.0) {
+                    val climb = newPoint.altitude - prevAlt
+                    if (climb > MIN_CLIMB_M) elevationGain += climb
+                }
+                lastAltitude = newPoint.altitude
+            }
+
             val speed = when {
-                rawSpeedKmh < 0 -> s.currentSpeedKmh        // device gave no speed
-                rawSpeedKmh < STILL_SPEED_KMH -> 0.0        // treat tiny drift as stopped
+                rawSpeedKmh < 0 -> s.currentSpeedKmh
+                rawSpeedKmh < STILL_SPEED_KMH -> 0.0
                 else -> rawSpeedKmh
             }
             val newDistanceM = s.distanceMeters + addedMeters
-            val reached = s.alarmEnabled && !s.goalReached &&
-                s.targetDistanceKm > 0.0 && (newDistanceM / 1000.0) >= s.targetDistanceKm
+            val newDistanceKm = newDistanceM / 1000.0
+
+            val threshold = s.targetDistanceKm * (s.alarmsTriggered + 1)
+            val canRing = s.alarmEnabled && s.targetDistanceKm > 0.0 &&
+                (s.repeatAlarm || s.alarmsTriggered == 0)
+            val reached = canRing && newDistanceKm >= threshold
 
             s.copy(
                 currentSpeedKmh = speed,
                 maxSpeedKmh = maxOf(s.maxSpeedKmh, speed),
                 distanceMeters = newDistanceM,
+                elevationGainMeters = elevationGain,
+                lastAltitude = lastAltitude,
                 path = path,
                 lastPoint = lastPoint,
+                alarmsTriggered = if (reached) s.alarmsTriggered + 1 else s.alarmsTriggered,
                 goalReached = s.goalReached || reached,
                 isAlarmRinging = s.isAlarmRinging || reached
             )
         }
 
-        // Ring outside the (potentially retried) update lambda.
-        if (RideRepository.current().isAlarmRinging && !alarm.isPlaying()) {
+        val after = RideRepository.current()
+        if (after.isAlarmRinging && !alarm.isPlaying()) {
             alarm.start()
+            if (after.voiceEnabled) speak("Ціль досягнута. Проїхано ${after.wholeKm} кілометрів.")
             updateNotification()
         }
+        maybeAnnounceKm(after)
+    }
+
+    private fun maybeAnnounceKm(state: RideState) {
+        if (!state.voiceEnabled) return
+        val km = state.wholeKm
+        if (km > announcedKm && km > 0) {
+            announcedKm = km
+            speak("Проїхано $km кілометрів. Середня швидкість ${state.avgSpeedKmh.toInt()}.")
+        }
+    }
+
+    private fun speak(text: String) {
+        if (voice == null) voice = VoiceAnnouncer(this)
+        voice?.speak(text)
     }
 
     // endregion
@@ -250,10 +324,23 @@ class TrackingService : Service() {
                 val now = SystemClock.elapsedRealtime()
                 val delta = now - lastTickElapsed
                 lastTickElapsed = now
-                if (RideRepository.current().status == RideStatus.TRACKING) {
-                    RideRepository.update { it.copy(durationMillis = it.durationMillis + delta) }
-                    updateNotification()
+                val state = RideRepository.current()
+                if (state.status != RideStatus.TRACKING) continue
+
+                val idle = state.autoPause && state.currentSpeedKmh < STILL_SPEED_KMH
+                RideRepository.update {
+                    if (idle) {
+                        it.copy(autoPaused = true)
+                    } else {
+                        it.copy(
+                            autoPaused = false,
+                            durationMillis = it.durationMillis + delta,
+                            caloriesKcal = it.caloriesKcal +
+                                Calories.burned(it.currentSpeedKmh, it.weightKg, delta)
+                        )
+                    }
                 }
+                updateNotification()
             }
         }
     }
@@ -283,18 +370,16 @@ class TrackingService : Service() {
     private fun buildNotification(state: RideState): Notification {
         val contentIntent = PendingIntent.getActivity(
             this, 0,
-            Intent(this, MainActivity::class.java)
-                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             pendingFlags()
         )
-
         val title = if (state.isAlarmRinging)
             getString(R.string.goal_reached)
         else
             getString(R.string.notification_title)
-
-        val text = "${formatDistance(state.distanceKm)} ${getString(R.string.distance_unit)}  ·  " +
-            "${formatSpeed(state.currentSpeedKmh)} ${getString(R.string.speed_unit)}"
+        val miles = state.useMiles
+        val text = "${Units.fmtDistance(state.distanceKm, miles)} ${Units.distUnit(miles)}  ·  " +
+            "${Units.fmtSpeed(state.currentSpeedKmh, miles)} ${Units.speedUnit(miles)}"
 
         val builder = NotificationCompat.Builder(this, CHANNEL_TRACKING)
             .setSmallIcon(R.drawable.ic_notification)
@@ -307,15 +392,10 @@ class TrackingService : Service() {
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
 
         if (state.isAlarmRinging) {
-            builder.addAction(
-                0, getString(R.string.dismiss_alarm),
-                servicePendingIntent(ACTION_DISMISS_ALARM, 1)
-            )
+            builder.addAction(0, getString(R.string.dismiss_alarm),
+                servicePendingIntent(ACTION_DISMISS_ALARM, 1))
         }
-        builder.addAction(
-            0, getString(R.string.stop),
-            servicePendingIntent(ACTION_STOP, 2)
-        )
+        builder.addAction(0, getString(R.string.stop), servicePendingIntent(ACTION_STOP, 2))
         return builder.build()
     }
 
@@ -359,9 +439,10 @@ class TrackingService : Service() {
         private const val CHANNEL_TRACKING = "tracking_channel"
         private const val NOTIF_ID = 1001
 
-        // Tuning constants for noise filtering.
-        private const val MAX_ACCURACY_M = 30f      // ignore fixes worse than this
-        private const val MIN_DISTANCE_M = 3.0      // ignore sub-3m jitter
-        private const val STILL_SPEED_KMH = 1.5     // below this we consider it standing still
+        private const val MAX_ACCURACY_M = 30f
+        private const val MIN_DISTANCE_M = 3.0
+        private const val STILL_SPEED_KMH = 1.5
+        private const val MIN_CLIMB_M = 1.0
+        private const val MIN_SAVE_DISTANCE_M = 50.0
     }
 }

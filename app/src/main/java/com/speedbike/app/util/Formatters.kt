@@ -1,24 +1,8 @@
 package com.speedbike.app.util
 
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
-import kotlin.math.roundToInt
-
-/** Whole km/h, e.g. "24". */
-fun formatSpeed(kmh: Double): String = kmh.coerceAtLeast(0.0).roundToInt().toString()
-
-/** One decimal km/h, e.g. "18.4". */
-fun formatSpeedDecimal(kmh: Double): String =
-    String.format(Locale.US, "%.1f", kmh.coerceAtLeast(0.0))
-
-/** Two decimals of km, e.g. "12.34". */
-fun formatDistance(km: Double): String =
-    String.format(Locale.US, "%.2f", km.coerceAtLeast(0.0))
-
-/** Compact km for labels, e.g. "10" or "7.5". */
-fun formatTargetKm(km: Double): String {
-    return if (km % 1.0 == 0.0) km.roundToInt().toString()
-    else String.format(Locale.US, "%.1f", km)
-}
 
 /** "M:SS" under an hour, otherwise "H:MM:SS". */
 fun formatDuration(millis: Long): String {
@@ -31,3 +15,8 @@ fun formatDuration(millis: Long): String {
     else
         String.format(Locale.US, "%02d:%02d", minutes, seconds)
 }
+
+private val dateFormat = SimpleDateFormat("d MMM yyyy, HH:mm", Locale("uk"))
+
+/** Human date for a ride, e.g. "25 черв 2026, 14:03". */
+fun formatRideDate(epochMillis: Long): String = dateFormat.format(Date(epochMillis))

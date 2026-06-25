@@ -23,27 +23,27 @@ import androidx.compose.ui.unit.sp
 import com.speedbike.app.ui.theme.AlarmRed
 import com.speedbike.app.ui.theme.Mint
 import com.speedbike.app.ui.theme.Outline
-import com.speedbike.app.util.formatSpeed
-import com.speedbike.app.util.formatTargetKm
+import com.speedbike.app.util.Units
 
 /**
  * Big central readout: current speed in the middle with a circular ring that
- * fills up as the rider approaches the target distance.
+ * fills up as the rider approaches the target (or next interval) distance.
  */
 @Composable
 fun SpeedGauge(
     speedKmh: Double,
     progress: Float,
     distanceKm: Double,
-    targetKm: Double,
-    goalReached: Boolean,
+    displayTargetKm: Double,
+    useMiles: Boolean,
+    highlight: Boolean,
     modifier: Modifier = Modifier
 ) {
     val animatedProgress by animateFloatAsState(
         targetValue = progress.coerceIn(0f, 1f),
         label = "gaugeProgress"
     )
-    val ringColor = if (goalReached) AlarmRed else Mint
+    val ringColor = if (highlight) AlarmRed else Mint
 
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Canvas(
@@ -52,17 +52,12 @@ fun SpeedGauge(
                 .padding(8.dp)
         ) {
             val stroke = 22f
-            // Center a square arc inside whatever (possibly non-square) space we get.
             val diameter = minOf(size.width, size.height) - stroke
-            val topLeft = Offset(
-                (size.width - diameter) / 2f,
-                (size.height - diameter) / 2f
-            )
+            val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
             val arcSize = Size(diameter, diameter)
             val startAngle = 135f
             val sweep = 270f
 
-            // Track
             drawArc(
                 color = Outline,
                 startAngle = startAngle,
@@ -72,7 +67,6 @@ fun SpeedGauge(
                 size = arcSize,
                 style = Stroke(width = stroke, cap = StrokeCap.Round)
             )
-            // Progress
             drawArc(
                 color = ringColor,
                 startAngle = startAngle,
@@ -86,20 +80,21 @@ fun SpeedGauge(
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = formatSpeed(speedKmh),
+                text = Units.fmtSpeed(speedKmh, useMiles),
                 fontSize = 76.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground,
                 textAlign = TextAlign.Center
             )
             Text(
-                text = "км/год",
+                text = Units.speedUnit(useMiles),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = "${formatTargetKm(distanceKm)} / ${formatTargetKm(targetKm)} км",
+                text = "${Units.fmtCompact(distanceKm, useMiles)} / " +
+                    "${Units.fmtCompact(displayTargetKm, useMiles)} ${Units.distUnit(useMiles)}",
                 fontSize = 14.sp,
                 color = ringColor,
                 modifier = Modifier.padding(top = 10.dp)

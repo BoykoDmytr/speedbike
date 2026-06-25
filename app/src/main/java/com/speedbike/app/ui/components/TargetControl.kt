@@ -9,9 +9,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalIconButton
@@ -30,27 +31,28 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.speedbike.app.ui.theme.Mint
-import com.speedbike.app.util.formatTargetKm
+import com.speedbike.app.util.Units
 
 /**
- * Lets the user pick the distance at which the alarm should fire and toggle the
- * alarm on/off. The slider spans 1..100 km with ±0.5 km fine buttons.
+ * Lets the user choose the alarm distance, toggle the alarm, and switch between a
+ * one-shot target and a repeating "every N km" interval.
  */
 @Composable
 fun TargetControl(
     targetKm: Double,
     alarmEnabled: Boolean,
+    repeatAlarm: Boolean,
+    useMiles: Boolean,
     enabled: Boolean,
     onTargetChange: (Double) -> Unit,
     onAlarmToggle: (Boolean) -> Unit,
+    onRepeatToggle: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Row(
@@ -95,22 +97,20 @@ fun TargetControl(
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant
                     )
-                ) {
-                    Icon(Icons.Filled.Remove, contentDescription = "Зменшити")
-                }
+                ) { Icon(Icons.Filled.Remove, contentDescription = "Зменшити") }
 
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.padding(horizontal = 20.dp)
                 ) {
                     Text(
-                        text = formatTargetKm(targetKm),
+                        text = Units.fmtCompact(targetKm, useMiles),
                         fontSize = 40.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
-                        text = "км — ціль",
+                        text = "${Units.distUnit(useMiles)} — ${if (repeatAlarm) "кожні" else "ціль"}",
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -122,9 +122,7 @@ fun TargetControl(
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant
                     )
-                ) {
-                    Icon(Icons.Filled.Add, contentDescription = "Збільшити")
-                }
+                ) { Icon(Icons.Filled.Add, contentDescription = "Збільшити") }
             }
 
             Slider(
@@ -139,6 +137,38 @@ fun TargetControl(
                 ),
                 modifier = Modifier.padding(top = 4.dp)
             )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Filled.Repeat,
+                        contentDescription = null,
+                        tint = if (repeatAlarm) Mint else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.size(8.dp))
+                    Text(
+                        text = "Повторювати кожен інтервал",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+                Switch(
+                    checked = repeatAlarm,
+                    onCheckedChange = onRepeatToggle,
+                    enabled = alarmEnabled,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                        checkedTrackColor = Mint
+                    )
+                )
+            }
         }
     }
 }

@@ -7,5 +7,6 @@ package com.speedbike.app.data
 data class TrackPoint(
     val latitude: Double,
     val longitude: Double,
-    val timestamp: Long
+    val altitude: Double = 0.0,
+    val timestamp: Long = 0L
 )
