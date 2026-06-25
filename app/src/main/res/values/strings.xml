@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">SpeedBike</string>
+
+    <!-- Notification -->
+    <string name="notification_channel_name">Відстеження поїздки</string>
+    <string name="notification_channel_desc">Показує активну поїздку та статистику</string>
+    <string name="alarm_channel_name">Сигнал дистанції</string>
+    <string name="alarm_channel_desc">Сповіщення про досягнення цілі</string>
+    <string name="notification_title">SpeedBike — поїздка триває</string>
+
+    <!-- UI -->
+    <string name="speed_unit">км/год</string>
+    <string name="distance_unit">км</string>
+    <string name="start">Старт</string>
+    <string name="pause">Пауза</string>
+    <string name="resume">Продовжити</string>
+    <string name="stop">Стоп</string>
+    <string name="target_distance">Ціль дистанції</string>
+    <string name="goal_reached">Ціль досягнута!</string>
+    <string name="dismiss_alarm">Вимкнути сигнал</string>
+</resources>
