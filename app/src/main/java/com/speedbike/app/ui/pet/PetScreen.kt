@@ -30,6 +30,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -88,6 +89,7 @@ fun PetScreen(onBack: () -> Unit, onOpenShop: () -> Unit) {
             QuestsCard(pet, onClaim = vm::claimQuest)
             JourneyCard(pet)
             AchievementsCard(pet)
+            TestCard(vm)
 
             Button(
                 onClick = vm::feed,
@@ -342,6 +344,55 @@ private fun AchievementsCard(pet: PetState) {
             }
             Spacer(Modifier.height(10.dp))
         }
+    }
+}
+
+@Composable
+private fun TestCard(vm: PetViewModel) {
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Amber.copy(alpha = 0.12f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text("🧪 Тестовий режим", color = Amber, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Щоб швидко все перевірити без реальних поїздок.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp
+            )
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TestButton("🚴 +10 км", Modifier.weight(1f)) { vm.simulateRide(10.0, 80.0, 22.0, 31.0) }
+                TestButton("⛰️ +100 км", Modifier.weight(1f)) { vm.simulateRide(100.0, 1200.0, 16.0, 27.0) }
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TestButton("+1000 🪙", Modifier.weight(1f)) { vm.addCoins(1000) }
+                OutlinedButton(
+                    onClick = { vm.resetPet() },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f)
+                ) { Text("Скинути", color = MaterialTheme.colorScheme.onBackground) }
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Скажи — приберу цей блок перед релізом.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun TestButton(label: String, modifier: Modifier, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(containerColor = Amber),
+        shape = RoundedCornerShape(12.dp),
+        modifier = modifier
+    ) {
+        Text(label, color = MaterialTheme.colorScheme.onPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
