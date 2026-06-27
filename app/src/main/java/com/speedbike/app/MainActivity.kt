@@ -25,8 +25,10 @@ import com.speedbike.app.ui.HistoryScreen
 import com.speedbike.app.ui.HistoryViewModel
 import com.speedbike.app.ui.HomeScreen
 import com.speedbike.app.ui.RideDetailScreen
+import com.speedbike.app.ui.HeatmapScreen
 import com.speedbike.app.ui.RideViewModel
 import com.speedbike.app.ui.SettingsScreen
+import com.speedbike.app.ui.StatsScreen
 import com.speedbike.app.ui.pet.PetScreen
 import com.speedbike.app.ui.pet.ShopScreen
 import com.speedbike.app.ui.theme.SpeedBikeTheme
@@ -85,6 +87,7 @@ class MainActivity : ComponentActivity() {
                             onOpenHistory = { nav.navigate("history") },
                             onOpenSettings = { nav.navigate("settings") },
                             onOpenPet = { nav.navigate("pet") },
+                            onOpenStats = { nav.navigate("stats") },
                             onRequestPermission = {
                                 startAfterGrant = false
                                 permissionLauncher.launch(Permissions.required)
@@ -123,6 +126,16 @@ class MainActivity : ComponentActivity() {
                     }
                     composable("shop") {
                         ShopScreen(onBack = { nav.popBackStack() })
+                    }
+                    composable("stats") {
+                        StatsScreen(
+                            useMiles = state.useMiles,
+                            onBack = { nav.popBackStack() },
+                            onOpenHeatmap = { nav.navigate("heatmap") }
+                        )
+                    }
+                    composable("heatmap") {
+                        HeatmapScreen(onBack = { nav.popBackStack() })
                     }
                     composable(
                         route = "detail/{rideId}",

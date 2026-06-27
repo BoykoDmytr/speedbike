@@ -44,6 +44,14 @@ class SettingsStore(context: Context) {
         get() = prefs.getString(KEY_MAP_STYLE, "standard") ?: "standard"
         set(value) = prefs.edit().putString(KEY_MAP_STYLE, value).apply()
 
+    var weeklyGoalKm: Double
+        get() = prefs.getFloat(KEY_WEEKLY_GOAL, 50f).toDouble()
+        set(value) = prefs.edit().putFloat(KEY_WEEKLY_GOAL, value.toFloat()).apply()
+
+    var monthlyGoalKm: Double
+        get() = prefs.getFloat(KEY_MONTHLY_GOAL, 200f).toDouble()
+        set(value) = prefs.edit().putFloat(KEY_MONTHLY_GOAL, value.toFloat()).apply()
+
     private companion object {
         const val KEY_TARGET = "target_km"
         const val KEY_ALARM = "alarm_enabled"
@@ -54,5 +62,7 @@ class SettingsStore(context: Context) {
         const val KEY_AUTO_PAUSE = "auto_pause"
         const val KEY_WEIGHT = "weight_kg"
         const val KEY_MAP_STYLE = "map_style"
+        const val KEY_WEEKLY_GOAL = "weekly_goal_km"
+        const val KEY_MONTHLY_GOAL = "monthly_goal_km"
     }
 }

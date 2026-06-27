@@ -6,15 +6,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.IosShare
@@ -44,9 +47,11 @@ import androidx.compose.ui.unit.sp
 import com.speedbike.app.data.PathCodec
 import com.speedbike.app.data.db.AppDatabase
 import com.speedbike.app.data.db.RideEntity
+import com.speedbike.app.ui.components.LineChart
 import com.speedbike.app.ui.components.MapStyle
 import com.speedbike.app.ui.components.RouteMap
 import com.speedbike.app.ui.components.StatCard
+import com.speedbike.app.util.RideAnalytics
 import com.speedbike.app.ui.theme.AlarmRed
 import com.speedbike.app.ui.theme.Amber
 import com.speedbike.app.ui.theme.Blue
@@ -130,6 +135,37 @@ fun RideDetailScreen(
                 StatCard(Icons.Filled.LocalFireDepartment, "КАЛОРІЇ", r.caloriesKcal.toInt().toString(), "ккал", Amber, Modifier.weight(1f))
             }
 
+            val series = remember(points) { RideAnalytics.series(points) }
+            val splits = remember(points) { RideAnalytics.splits(points) }
+
+            if (series.hasSpeed) {
+                ChartCard {
+                    LineChart(
+                        xs = series.distancesKm,
+                        ys = series.speedsKmh.map { Units.speed(it.toDouble(), useMiles).toFloat() },
+                        lineColor = Amber,
+                        title = "Швидкість, ${Units.speedUnit(useMiles)}",
+                        valueLabel = { it.toInt().toString() },
+                        modifier = Modifier.fillMaxWidth().height(150.dp)
+                    )
+                }
+            }
+            if (series.hasAltitude) {
+                ChartCard {
+                    LineChart(
+                        xs = series.distancesKm,
+                        ys = series.altitudesM.map { Units.height(it.toDouble(), useMiles).toFloat() },
+                        lineColor = Mint,
+                        title = "Висота, ${Units.heightUnit(useMiles)}",
+                        valueLabel = { it.toInt().toString() },
+                        modifier = Modifier.fillMaxWidth().height(150.dp)
+                    )
+                }
+            }
+            if (splits.isNotEmpty()) {
+                SplitsCard(splits, useMiles)
+            }
+
             Button(
                 onClick = { GpxExporter.share(context, points, "SpeedBike_${r.startedAt}") },
                 colors = ButtonDefaults.buttonColors(containerColor = Mint),
@@ -141,6 +177,55 @@ fun RideDetailScreen(
                 Icon(Icons.Filled.IosShare, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
                 Spacer(Modifier.size(8.dp))
                 Text("Експортувати GPX", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChartCard(content: @Composable () -> Unit) {
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Box(Modifier.padding(12.dp)) { content() }
+    }
+}
+
+@Composable
+private fun SplitsCard(splits: List<RideAnalytics.Split>, useMiles: Boolean) {
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text("Спліти по км", color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Spacer(Modifier.height(8.dp))
+            val maxSpeed = splits.maxOfOrNull { it.speedKmh } ?: 1.0
+            splits.forEach { s ->
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, modifier = Modifier.padding(vertical = 3.dp)) {
+                    Text("${s.km} км", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, modifier = Modifier.width(52.dp))
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(14.dp)
+                            .padding(end = 8.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth((s.speedKmh / maxSpeed).coerceIn(0.05, 1.0).toFloat())
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(Mint)
+                        )
+                    }
+                    Text(formatDuration(s.seconds * 1000), color = MaterialTheme.colorScheme.onBackground, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(56.dp))
+                    Text("${Units.fmtSpeed(s.speedKmh, useMiles)}", color = Amber, fontSize = 12.sp, modifier = Modifier.width(36.dp))
+                }
             }
         }
     }

@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Pause
@@ -83,6 +84,7 @@ fun HomeScreen(
     onOpenHistory: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenPet: () -> Unit,
+    onOpenStats: () -> Unit,
     onRequestPermission: () -> Unit
 ) {
     val scroll = rememberScrollState()
@@ -100,7 +102,7 @@ fun HomeScreen(
                 .verticalScroll(scroll)
                 .padding(16.dp)
         ) {
-            Header(onOpenPet = onOpenPet, onOpenHistory = onOpenHistory, onOpenSettings = onOpenSettings)
+            Header(onOpenPet = onOpenPet, onOpenStats = onOpenStats, onOpenHistory = onOpenHistory, onOpenSettings = onOpenSettings)
 
             Spacer(Modifier.height(14.dp))
 
@@ -172,7 +174,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun Header(onOpenPet: () -> Unit, onOpenHistory: () -> Unit, onOpenSettings: () -> Unit) {
+private fun Header(onOpenPet: () -> Unit, onOpenStats: () -> Unit, onOpenHistory: () -> Unit, onOpenSettings: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier
@@ -199,6 +201,9 @@ private fun Header(onOpenPet: () -> Unit, onOpenHistory: () -> Unit, onOpenSetti
         }
         IconButton(onClick = onOpenPet) {
             Icon(Icons.Filled.Pets, contentDescription = "Друг", tint = Mint)
+        }
+        IconButton(onClick = onOpenStats) {
+            Icon(Icons.Filled.Insights, contentDescription = "Статистика", tint = MaterialTheme.colorScheme.onBackground)
         }
         IconButton(onClick = onOpenHistory) {
             Icon(Icons.Filled.History, contentDescription = "Історія", tint = MaterialTheme.colorScheme.onBackground)
