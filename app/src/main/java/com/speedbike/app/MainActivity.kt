@@ -109,12 +109,14 @@ class MainActivity : ComponentActivity() {
                             voiceEnabled = state.voiceEnabled,
                             keepScreenOn = state.keepScreenOn,
                             autoPause = state.autoPause,
+                            mapNight = state.mapNight,
                             weightKg = state.weightKg,
                             onBack = { nav.popBackStack() },
                             onMiles = rideVm::setUseMiles,
                             onVoice = rideVm::setVoiceEnabled,
                             onKeepScreen = rideVm::setKeepScreenOn,
                             onAutoPause = rideVm::setAutoPause,
+                            onMapNight = rideVm::setMapNight,
                             onWeight = rideVm::setWeight
                         )
                     }
@@ -135,7 +137,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     composable("heatmap") {
-                        HeatmapScreen(onBack = { nav.popBackStack() })
+                        HeatmapScreen(night = state.mapNight, onBack = { nav.popBackStack() })
                     }
                     composable(
                         route = "detail/{rideId}",
@@ -146,6 +148,7 @@ class MainActivity : ComponentActivity() {
                             rideId = id,
                             mapStyle = mapStyle,
                             useMiles = state.useMiles,
+                            mapNight = state.mapNight,
                             onBack = { nav.popBackStack() },
                             onCycleStyle = rideVm::cycleMapStyle
                         )

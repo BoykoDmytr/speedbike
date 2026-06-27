@@ -38,7 +38,8 @@ class RideViewModel(app: Application) : AndroidViewModel(app) {
                 voiceEnabled = settings.voiceEnabled,
                 keepScreenOn = settings.keepScreenOn,
                 autoPause = settings.autoPause,
-                weightKg = settings.weightKg
+                weightKg = settings.weightKg,
+                mapNight = settings.mapNight
             )
         }
     }
@@ -98,6 +99,11 @@ class RideViewModel(app: Application) : AndroidViewModel(app) {
         val next = MapStyle.next(_mapStyle.value)
         settings.mapStyle = next.key
         _mapStyle.value = next
+    }
+
+    fun setMapNight(enabled: Boolean) {
+        settings.mapNight = enabled
+        RideRepository.update { it.copy(mapNight = enabled) }
     }
 
     // endregion

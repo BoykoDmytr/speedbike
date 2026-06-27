@@ -30,6 +30,7 @@ data class RideState(
     val keepScreenOn: Boolean = true,
     val autoPause: Boolean = true,
     val weightKg: Double = 70.0,
+    val mapNight: Boolean = false,
 
     // Alarm / progress tracking
     val alarmsTriggered: Int = 0,

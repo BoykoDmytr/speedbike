@@ -20,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Straighten
@@ -33,6 +34,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -57,6 +59,7 @@ import com.speedbike.app.ui.theme.Amber
 import com.speedbike.app.ui.theme.Blue
 import com.speedbike.app.ui.theme.Mint
 import com.speedbike.app.util.GpxExporter
+import com.speedbike.app.util.ShareCard
 import com.speedbike.app.util.Units
 import com.speedbike.app.util.formatDuration
 import com.speedbike.app.util.formatRideDate
@@ -66,6 +69,7 @@ fun RideDetailScreen(
     rideId: Long,
     mapStyle: MapStyle,
     useMiles: Boolean,
+    mapNight: Boolean,
     onBack: () -> Unit,
     onCycleStyle: () -> Unit
 ) {
@@ -106,6 +110,7 @@ fun RideDetailScreen(
                 current = points.lastOrNull(),
                 style = mapStyle,
                 fitRoute = true,
+                night = mapNight,
                 onCycleStyle = onCycleStyle,
                 modifier = Modifier.fillMaxSize()
             )
@@ -166,17 +171,41 @@ fun RideDetailScreen(
                 SplitsCard(splits, useMiles)
             }
 
-            Button(
-                onClick = { GpxExporter.share(context, points, "SpeedBike_${r.startedAt}") },
-                colors = ButtonDefaults.buttonColors(containerColor = Mint),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp)
-            ) {
-                Icon(Icons.Filled.IosShare, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
-                Spacer(Modifier.size(8.dp))
-                Text("Експортувати GPX", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(
+                    onClick = {
+                        ShareCard.share(
+                            context,
+                            ShareCard.Data(
+                                points = points,
+                                distanceKm = r.distanceKm,
+                                durationMillis = r.durationMillis,
+                                avgSpeedKmh = r.avgSpeedKmh,
+                                maxSpeedKmh = r.maxSpeedKmh,
+                                elevationM = r.elevationGainMeters,
+                                calories = r.caloriesKcal,
+                                dateMillis = r.startedAt
+                            ),
+                            useMiles
+                        )
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Mint),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.weight(1f).height(54.dp)
+                ) {
+                    Icon(Icons.Filled.Image, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
+                    Spacer(Modifier.size(8.dp))
+                    Text("Картинка", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
+                }
+                OutlinedButton(
+                    onClick = { GpxExporter.share(context, points, "SpeedBike_${r.startedAt}") },
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.weight(1f).height(54.dp)
+                ) {
+                    Icon(Icons.Filled.IosShare, contentDescription = null, tint = Mint)
+                    Spacer(Modifier.size(8.dp))
+                    Text("GPX", color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }

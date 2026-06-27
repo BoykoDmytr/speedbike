@@ -37,12 +37,14 @@ fun SettingsScreen(
     voiceEnabled: Boolean,
     keepScreenOn: Boolean,
     autoPause: Boolean,
+    mapNight: Boolean,
     weightKg: Double,
     onBack: () -> Unit,
     onMiles: (Boolean) -> Unit,
     onVoice: (Boolean) -> Unit,
     onKeepScreen: (Boolean) -> Unit,
     onAutoPause: (Boolean) -> Unit,
+    onMapNight: (Boolean) -> Unit,
     onWeight: (Double) -> Unit
 ) {
     Column(
@@ -87,6 +89,14 @@ fun SettingsScreen(
                     subtitle = "Не рахувати час, поки стоїш на місці",
                     checked = autoPause,
                     onChange = onAutoPause
+                )
+            }
+            SettingCard {
+                SwitchRow(
+                    title = "Нічна карта",
+                    subtitle = "Темні кольори карти — зручно ввечері",
+                    checked = mapNight,
+                    onChange = onMapNight
                 )
             }
             SettingCard {

@@ -38,6 +38,7 @@ import com.speedbike.app.data.pet.PetStore
 import com.speedbike.app.data.pet.RideOutcome
 import com.speedbike.app.util.Calories
 import com.speedbike.app.util.Units
+import com.speedbike.app.widget.SpeedBikeWidget
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -195,6 +196,7 @@ class TrackingService : Service() {
         val appContext = applicationContext
         serviceScope.launch {
             runCatching { AppDatabase.get(appContext).rideDao().insert(entity) }
+            SpeedBikeWidget.updateAll(appContext)
         }
     }
 

@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.LocationOn
@@ -48,6 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -62,6 +64,7 @@ import com.speedbike.app.ui.theme.AlarmRed
 import com.speedbike.app.ui.theme.Amber
 import com.speedbike.app.ui.theme.Blue
 import com.speedbike.app.ui.theme.Mint
+import com.speedbike.app.util.ShareCard
 import com.speedbike.app.util.Units
 import com.speedbike.app.util.formatDuration
 
@@ -229,6 +232,7 @@ private fun MapCard(state: RideState, mapStyle: MapStyle, onCycleMapStyle: () ->
                 current = state.lastPoint,
                 style = mapStyle,
                 follow = state.status == RideStatus.TRACKING,
+                night = state.mapNight,
                 onCycleStyle = onCycleMapStyle,
                 modifier = Modifier.fillMaxSize()
             )
@@ -434,6 +438,7 @@ private fun RideSummaryDialog(
     onClose: () -> Unit
 ) {
     val miles = state.useMiles
+    val context = LocalContext.current
     AlertDialog(
         onDismissRequest = onClose,
         confirmButton = {
@@ -443,7 +448,7 @@ private fun RideSummaryDialog(
         },
         dismissButton = {
             Row {
-                TextButton(onClick = onExport) { Text("Експорт GPX", color = Mint) }
+                TextButton(onClick = onExport) { Text("GPX", color = Mint) }
                 TextButton(onClick = onHistory) { Text("Історія", color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
         },
@@ -457,6 +462,33 @@ private fun RideSummaryDialog(
                 SummaryRow("Макс", "${Units.fmtSpeed1(state.maxSpeedKmh, miles)} ${Units.speedUnit(miles)}")
                 SummaryRow("Набір висоти", "${Units.fmtHeight(state.elevationGainMeters, miles)} ${Units.heightUnit(miles)}")
                 SummaryRow("Калорії", "${state.caloriesKcal.toInt()} ккал")
+                Spacer(Modifier.height(14.dp))
+                Button(
+                    onClick = {
+                        ShareCard.share(
+                            context,
+                            ShareCard.Data(
+                                points = state.path,
+                                distanceKm = state.distanceKm,
+                                durationMillis = state.durationMillis,
+                                avgSpeedKmh = state.avgSpeedKmh,
+                                maxSpeedKmh = state.maxSpeedKmh,
+                                elevationM = state.elevationGainMeters,
+                                calories = state.caloriesKcal,
+                                dateMillis = state.path.firstOrNull()?.timestamp
+                                    ?: System.currentTimeMillis()
+                            ),
+                            miles
+                        )
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Mint),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Filled.Image, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
+                    Spacer(Modifier.size(8.dp))
+                    Text("Поділитися картинкою", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
+                }
             }
         },
         containerColor = MaterialTheme.colorScheme.surface

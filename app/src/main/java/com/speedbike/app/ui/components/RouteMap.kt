@@ -42,6 +42,7 @@ import org.osmdroid.views.CustomZoomButtonsController
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polyline
+import org.osmdroid.views.overlay.TilesOverlay
 
 /**
  * OpenStreetMap (osmdroid) view in Compose. Draws the route polyline and current
@@ -56,6 +57,7 @@ fun RouteMap(
     modifier: Modifier = Modifier,
     follow: Boolean = true,
     fitRoute: Boolean = false,
+    night: Boolean = false,
     onCycleStyle: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -93,6 +95,7 @@ fun RouteMap(
     var followUser by remember { mutableStateOf(follow && !fitRoute) }
     var didFit by remember { mutableStateOf(false) }
     var appliedStyle by remember { mutableStateOf<MapStyle?>(null) }
+    var appliedNight by remember { mutableStateOf<Boolean?>(null) }
     // Plain holder (not Compose state) so writing it never triggers recomposition.
     val suppress = remember { longArrayOf(0L) }
 
@@ -121,6 +124,12 @@ fun RouteMap(
                 if (appliedStyle != style) {
                     mv.setTileSource(tileSourceFor(style))
                     appliedStyle = style
+                }
+                if (appliedNight != night) {
+                    mv.overlayManager.tilesOverlay.setColorFilter(
+                        if (night) TilesOverlay.INVERT_COLORS else null
+                    )
+                    appliedNight = night
                 }
                 polyline.setPoints(path.map { GeoPoint(it.latitude, it.longitude) })
                 if (mv.overlays.isEmpty()) {

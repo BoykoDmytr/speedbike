@@ -27,9 +27,10 @@ import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.CustomZoomButtonsController
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Polyline
+import org.osmdroid.views.overlay.TilesOverlay
 
 @Composable
-fun HeatmapScreen(onBack: () -> Unit) {
+fun HeatmapScreen(night: Boolean = false, onBack: () -> Unit) {
     val vm: HistoryViewModel = viewModel()
     val rides by vm.rides.collectAsStateWithLifecycle()
     val paths = remember(rides) { rides.map { PathCodec.decode(it.pathEncoded) }.filter { it.size >= 2 } }
@@ -57,6 +58,9 @@ fun HeatmapScreen(onBack: () -> Unit) {
                 mapView.onResume(); onDispose { mapView.onPause() }
             }
             AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize(), update = { mv ->
+                mv.overlayManager.tilesOverlay.setColorFilter(
+                    if (night) TilesOverlay.INVERT_COLORS else null
+                )
                 mv.overlays.clear()
                 val all = ArrayList<GeoPoint>()
                 for (path in paths) {
