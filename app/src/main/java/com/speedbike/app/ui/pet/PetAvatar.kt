@@ -15,15 +15,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.speedbike.app.data.pet.PetState
 
-/** Pixel-art pet riding an animated bicycle, drawn entirely in code. */
+/** Pixel-art pet, drawn entirely in code with idle bob + blink animation. */
 @Composable
 fun PetAvatar(pet: PetState, modifier: Modifier = Modifier) {
     val transition = rememberInfiniteTransition(label = "pet")
     val bob by transition.animateFloat(
         0f, 1f, infiniteRepeatable(tween(1400), RepeatMode.Reverse), label = "bob"
-    )
-    val wheelRot by transition.animateFloat(
-        0f, 360f, infiniteRepeatable(tween(1400, easing = LinearEasing), RepeatMode.Restart), label = "wheel"
     )
     val blinkPhase by transition.animateFloat(
         0f, 1f, infiniteRepeatable(tween(3600, easing = LinearEasing), RepeatMode.Restart), label = "blink"
@@ -33,7 +30,7 @@ fun PetAvatar(pet: PetState, modifier: Modifier = Modifier) {
     BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.Center) {
         val side = minOf(maxWidth, maxHeight)
         Canvas(modifier = Modifier.size(side)) {
-            drawPixelPet(pet, bob, wheelRot, blink)
+            drawPixelPet(pet, bob, blink)
         }
     }
 }
