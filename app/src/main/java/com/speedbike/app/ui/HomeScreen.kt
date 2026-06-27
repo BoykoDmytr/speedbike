@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Speed
@@ -81,6 +82,7 @@ fun HomeScreen(
     onClearSummary: () -> Unit,
     onOpenHistory: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenPet: () -> Unit,
     onRequestPermission: () -> Unit
 ) {
     val scroll = rememberScrollState()
@@ -98,7 +100,7 @@ fun HomeScreen(
                 .verticalScroll(scroll)
                 .padding(16.dp)
         ) {
-            Header(onOpenHistory = onOpenHistory, onOpenSettings = onOpenSettings)
+            Header(onOpenPet = onOpenPet, onOpenHistory = onOpenHistory, onOpenSettings = onOpenSettings)
 
             Spacer(Modifier.height(14.dp))
 
@@ -170,7 +172,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun Header(onOpenHistory: () -> Unit, onOpenSettings: () -> Unit) {
+private fun Header(onOpenPet: () -> Unit, onOpenHistory: () -> Unit, onOpenSettings: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier
@@ -194,6 +196,9 @@ private fun Header(onOpenHistory: () -> Unit, onOpenSettings: () -> Unit) {
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+        IconButton(onClick = onOpenPet) {
+            Icon(Icons.Filled.Pets, contentDescription = "Друг", tint = Mint)
         }
         IconButton(onClick = onOpenHistory) {
             Icon(Icons.Filled.History, contentDescription = "Історія", tint = MaterialTheme.colorScheme.onBackground)

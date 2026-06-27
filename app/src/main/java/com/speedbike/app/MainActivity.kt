@@ -27,6 +27,8 @@ import com.speedbike.app.ui.HomeScreen
 import com.speedbike.app.ui.RideDetailScreen
 import com.speedbike.app.ui.RideViewModel
 import com.speedbike.app.ui.SettingsScreen
+import com.speedbike.app.ui.pet.PetScreen
+import com.speedbike.app.ui.pet.ShopScreen
 import com.speedbike.app.ui.theme.SpeedBikeTheme
 import com.speedbike.app.util.Permissions
 
@@ -82,6 +84,7 @@ class MainActivity : ComponentActivity() {
                             onClearSummary = rideVm::clearSummary,
                             onOpenHistory = { nav.navigate("history") },
                             onOpenSettings = { nav.navigate("settings") },
+                            onOpenPet = { nav.navigate("pet") },
                             onRequestPermission = {
                                 startAfterGrant = false
                                 permissionLauncher.launch(Permissions.required)
@@ -111,6 +114,15 @@ class MainActivity : ComponentActivity() {
                             onAutoPause = rideVm::setAutoPause,
                             onWeight = rideVm::setWeight
                         )
+                    }
+                    composable("pet") {
+                        PetScreen(
+                            onBack = { nav.popBackStack() },
+                            onOpenShop = { nav.navigate("shop") }
+                        )
+                    }
+                    composable("shop") {
+                        ShopScreen(onBack = { nav.popBackStack() })
                     }
                     composable(
                         route = "detail/{rideId}",

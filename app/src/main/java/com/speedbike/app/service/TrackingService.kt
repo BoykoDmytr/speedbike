@@ -32,6 +32,10 @@ import com.speedbike.app.data.RideStatus
 import com.speedbike.app.data.TrackPoint
 import com.speedbike.app.data.db.AppDatabase
 import com.speedbike.app.data.db.RideEntity
+import com.speedbike.app.data.pet.PetEngine
+import com.speedbike.app.data.pet.PetRepository
+import com.speedbike.app.data.pet.PetStore
+import com.speedbike.app.data.pet.RideOutcome
 import com.speedbike.app.util.Calories
 import com.speedbike.app.util.Units
 import kotlinx.coroutines.CoroutineScope
@@ -152,7 +156,9 @@ class TrackingService : Service() {
         stopTimer()
         removeLocationUpdates()
         alarm.stop()
-        saveRideIfMeaningful(RideRepository.current())
+        val finished = RideRepository.current()
+        saveRideIfMeaningful(finished)
+        feedPet(finished)
         RideRepository.update {
             it.copy(
                 status = RideStatus.IDLE,
@@ -190,6 +196,22 @@ class TrackingService : Service() {
         serviceScope.launch {
             runCatching { AppDatabase.get(appContext).rideDao().insert(entity) }
         }
+    }
+
+    /** Feed the virtual pet with the finished ride (energy, coins, XP, streak…). */
+    private fun feedPet(state: RideState) {
+        if (state.distanceMeters < MIN_SAVE_DISTANCE_M) return
+        val outcome = RideOutcome(
+            distanceKm = state.distanceKm,
+            elevationM = state.elevationGainMeters,
+            avgSpeedKmh = state.avgSpeedKmh,
+            maxSpeedKmh = state.maxSpeedKmh,
+            movingMillis = state.durationMillis
+        )
+        val store = PetStore(applicationContext)
+        val result = PetEngine.applyRide(store.load(), outcome, System.currentTimeMillis())
+        store.save(result.state)
+        PetRepository.set(result.state)
     }
 
     // endregion
